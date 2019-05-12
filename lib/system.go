@@ -292,6 +292,14 @@ type RunResult struct {
 	Failures  []*CmdFailure
 }
 
+// DependencyDiscoveryPlugin is used to implement custom dependency detection
+// logic.
+type DependencyDiscoveryPlugin interface {
+	// Discover a module out of the given file.
+	// Returns a list of paths to dependent modules.
+	Discover(fromFile string) []string
+}
+
 // System is the interface used by users to invoke the core functionality
 // of this package
 type System interface {

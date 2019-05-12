@@ -37,12 +37,14 @@ type moduleMetadata struct {
 	dependentFileHashes map[string]string
 }
 
-// moduleMetadataSet is an array of ModuleMetadata extracted from the repository.
+// moduleMetadataSet is an array of ModuleMetadata extracted
+// from the repository.
 type moduleMetadataSet []*moduleMetadata
 
 type stdDiscover struct {
-	Repo Repo
-	Log  Log
+	Repo    Repo
+	Log     Log
+	Plugins map[string]DependencyDiscoveryPlugin
 }
 
 const configFileName = ".mbt.yml"
@@ -53,25 +55,42 @@ func NewDiscover(repo Repo, l Log) Discover {
 }
 
 func (d *stdDiscover) ModulesInCommit(commit Commit) (Modules, error) {
+	moduleMetadataSetByPath := make(map[string]*moduleMetadata)
+	mms, err := d.walkCommit(commit, moduleMetadataSetByPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return toModules(mms)
+}
+
+func (d *stdDiscover) discoverPluginDependencies(commit Commit, mms *moduleMetadataSet, moduleMetadataSetByPath map[string]*moduleMetadata) error {
+	err := d.Repo.WalkBlobs(commit, func(b Blob) error {
+		return nil
+	})
+
+	return err
+}
+
+func (d *stdDiscover) calculateVersionFromGit(commit Commit, path string) (string, error) {
+	if path != "" {
+		// We are not on the root, take the git sha for parent tree object.
+		return d.Repo.EntryID(commit, path)
+	}
+	// We are on the root, take the commit sha.
+	return commit.ID(), nil
+}
+
+func (d *stdDiscover) walkCommit(commit Commit, moduleMetadataSetByPath map[string]*moduleMetadata) (moduleMetadataSet, error) {
 	repo := d.Repo
 	metadataSet := moduleMetadataSet{}
 
 	err := repo.WalkBlobs(commit, func(b Blob) error {
 		if b.Name() == configFileName {
-			var (
-				hash string
-				err  error
-			)
 			p := strings.TrimRight(b.Path(), "/")
-			if p != "" {
-				// We are not on the root, take the git sha for parent tree object.
-				hash, err = repo.EntryID(commit, p)
-				if err != nil {
-					return err
-				}
-			} else {
-				// We are on the root, take the commit sha.
-				hash = commit.ID()
+			hash, err := d.calculateVersionFromGit(commit, p)
+			if err != nil {
+				return err
 			}
 
 			contents, err := repo.BlobContents(b)
@@ -81,7 +100,10 @@ func (d *stdDiscover) ModulesInCommit(commit Commit) (Modules, error) {
 
 			spec, err := newSpec(contents)
 			if err != nil {
-				return e.Wrapf(ErrClassUser, err, "error while parsing the spec at %v", b)
+				return e.Wrapf(ErrClassUser,
+					err,
+					"error while parsing the spec at %v",
+					b)
 			}
 
 			// Discover the hashes for file dependencies of this module
@@ -89,14 +111,22 @@ func (d *stdDiscover) ModulesInCommit(commit Commit) (Modules, error) {
 			for _, f := range spec.FileDependencies {
 				fh, err := repo.EntryID(commit, f)
 				if err != nil {
-					return e.Wrapf(ErrClassUser, err, msgFileDependencyNotFound, f, spec.Name, p)
+					return e.Wrapf(ErrClassUser,
+						err,
+						msgFileDependencyNotFound,
+						f,
+						spec.Name,
+						p)
 				}
 
 				dependentFileHashes[f] = fh
 			}
 
-			metadataSet = append(metadataSet, newModuleMetadata(p, hash, spec, dependentFileHashes))
+			mm := newModuleMetadata(p, hash, spec, dependentFileHashes)
+			moduleMetadataSetByPath[p] = mm
+			metadataSet = append(metadataSet, mm)
 		}
+
 		return nil
 	})
 
@@ -104,10 +134,14 @@ func (d *stdDiscover) ModulesInCommit(commit Commit) (Modules, error) {
 		return nil, err
 	}
 
-	return toModules(metadataSet)
+	return metadataSet, nil
 }
 
 func (d *stdDiscover) ModulesInWorkspace() (Modules, error) {
+	return d.walkWorkspace()
+}
+
+func (d *stdDiscover) walkWorkspace() (Modules, error) {
 	metadataSet := moduleMetadataSet{}
 	absRepoPath, err := filepath.Abs(d.Repo.Path())
 	if err != nil {
