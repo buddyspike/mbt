@@ -20,6 +20,7 @@ import (
 	"encoding/hex"
 	"io"
 	"io/ioutil"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -55,8 +56,13 @@ func NewDiscover(repo Repo, l Log) Discover {
 }
 
 func (d *stdDiscover) ModulesInCommit(commit Commit) (Modules, error) {
-	moduleMetadataSetByPath := make(map[string]*moduleMetadata)
+	moduleByPath := make(map[string]*moduleMetadata)
 	mms, err := d.walkCommit(commit, moduleMetadataSetByPath)
+	if err != nil {
+		return nil, err
+	}
+
+	err = d.discoverPluginDependencies(commit, &mms, moduleByPath)
 	if err != nil {
 		return nil, err
 	}
@@ -66,6 +72,19 @@ func (d *stdDiscover) ModulesInCommit(commit Commit) (Modules, error) {
 
 func (d *stdDiscover) discoverPluginDependencies(commit Commit, mms *moduleMetadataSet, moduleMetadataSetByPath map[string]*moduleMetadata) error {
 	err := d.Repo.WalkBlobs(commit, func(b Blob) error {
+		extension := path.Ext(b.name())
+		p, ok := d.Plugins[extension]
+		if !ok {
+			return nil
+		}
+
+		dependencies, err := p.Discover(d.Repo.BlobContents(b))
+		if err != nil {
+			return err
+		}
+
+		moduleName := strings.TrimRight(b.Path(), "/")
+
 		return nil
 	})
 

@@ -295,9 +295,9 @@ type RunResult struct {
 // DependencyDiscoveryPlugin is used to implement custom dependency detection
 // logic.
 type DependencyDiscoveryPlugin interface {
-	// Discover a module out of the given file.
+	// Discover dependencies based on the content.
 	// Returns a list of paths to dependent modules.
-	Discover(fromFile string) []string
+	Discover(content []byte) ([]string, error)
 }
 
 // System is the interface used by users to invoke the core functionality
