@@ -1,38 +1,53 @@
 package lib
 
 import (
-	"fmt"
 	"github.com/mbtproject/mbt/e"
+	"github.com/mbtproject/mbt/git"
 )
 
 type gitRepo struct {
-	path string
-	Log  Log
+	path   string
+	client git.CLI
+	Log    Log
 }
 
 // Commit is a reference to a git commit object
-type Commit struct {
-	ID string
-	String string
+type cliCommit struct {
+	sha string
 }
 
-// Reference to a git tree object
-type Reference struct {
-	Name string
-	SymbolicName string
+func (c *cliCommit) ID() string {
+	return c.sha
 }
 
-// NewGitRepo creates a gitRepo instance that interacts with 
+func (c *cliCommit) String() string {
+	return c.sha
+}
+
+type cliReference struct {
+	name         string
+	symbolicName string
+}
+
+func (c *cliReference) Name() string {
+	return c.name
+}
+
+func (c *cliReference) SymbolicName() string {
+	return c.symbolicName
+}
+
+// NewGitRepo creates a gitRepo instance that interacts with
 // git repository using git cli
 func NewGitRepo(path string, log Log) (Repo, error) {
 	return &gitRepo{
 		path: path,
-		Log: log,
+		Log:  log,
 	}, nil
 }
 
 func (r *gitRepo) GetCommit(commitSha string) (Commit, error) {
-	return nil, nil
+	return nil, e.NewError(ErrClassInternal, "Not implemented")
 }
 
 func (r *gitRepo) Path() string {
@@ -40,49 +55,15 @@ func (r *gitRepo) Path() string {
 }
 
 func (r *gitRepo) Diff(a, b Commit) ([]*DiffDelta, error) {
-	diff, err := diff(r.Repo, a, b)
-	if err != nil {
-		return nil, e.Wrap(ErrClassInternal, err)
-	}
-
-	return deltas(diff)
+	return nil, nil
 }
 
 func (r *gitRepo) DiffMergeBase(from, to Commit) ([]*DiffDelta, error) {
-	bc, err := r.MergeBase(from, to)
-	if err != nil {
-		return nil, err
-	}
-
-	diff, err := diff(r.Repo, bc, to)
-	if err != nil {
-		return nil, e.Wrap(ErrClassInternal, err)
-	}
-
-	return deltas(diff)
+	return nil, nil
 }
 
 func (r *gitRepo) DiffWorkspace() ([]*DiffDelta, error) {
-	index, err := r.Repo.Index()
-	if err != nil {
-		return nil, e.Wrap(ErrClassInternal, err)
-	}
-
-	// Diff flags below are essential to get a list of
-	// untracked files (including the ones inside new directories)
-	// in the diff.
-	// Without git.DiffRecurseUntracked option, if a new file is added inside
-	// a new directory, we only get the path to the directory.
-	// This option is same as running git status -uall
-	diff, err := r.Repo.DiffIndexToWorkdir(index, &git.DiffOptions{
-		Flags: git.DiffIncludeUntracked | git.DiffRecurseUntracked,
-	})
-
-	if err != nil {
-		return nil, e.Wrap(ErrClassInternal, err)
-	}
-
-	return deltas(diff)
+	return nil, nil
 }
 
 func (r *gitRepo) Changes(c Commit) ([]*DiffDelta, error) {
