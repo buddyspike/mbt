@@ -41,13 +41,18 @@ func (c *cliReference) SymbolicName() string {
 // git repository using git cli
 func NewGitRepo(path string, log Log) (Repo, error) {
 	return &gitRepo{
-		path: path,
-		Log:  log,
+		path:   path,
+		client: git.NewCLI(path),
+		Log:    log,
 	}, nil
 }
 
-func (r *gitRepo) GetCommit(commitSha string) (Commit, error) {
-	return nil, e.NewError(ErrClassInternal, "Not implemented")
+func (r *gitRepo) GetCommit(sha string) (Commit, error) {
+	_, err := r.client.LsTree(sha)
+	if err != nil {
+		return nil, e.Wrap(ErrClassInternal, err)
+	}
+	return &cliCommit{sha: sha}, nil
 }
 
 func (r *gitRepo) Path() string {
