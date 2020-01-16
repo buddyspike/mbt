@@ -60,15 +60,44 @@ func (r *gitRepo) Path() string {
 }
 
 func (r *gitRepo) Diff(a, b Commit) ([]*DiffDelta, error) {
-	return nil, nil
+	files, err := r.client.Diff(a.ID(), b.ID())
+	if err != nil {
+		return nil, e.Wrap(ErrClassInternal, err)
+	}
+
+	result := make([]*DiffDelta, len(files))
+	for i := 0; i < len(result); i++ {
+		result[i] = &DiffDelta{
+			OldFile: files[i],
+			NewFile: files[i],
+		}
+	}
+	return result, nil
 }
 
 func (r *gitRepo) DiffMergeBase(from, to Commit) ([]*DiffDelta, error) {
-	return nil, nil
+	mb, err := r.MergeBase(from, to)
+	if err != nil {
+		return nil, e.Wrap(ErrClassInternal, err)
+	}
+
+	return r.Diff(mb, to)
 }
 
 func (r *gitRepo) DiffWorkspace() ([]*DiffDelta, error) {
-	return nil, nil
+	s, err := r.client.Status()
+	if err != nil {
+		return nil, e.Wrap(ErrClassInternal, err)
+	}
+
+	ret := make([]*DiffDelta, len(s))
+	for i := 0; i < len(s); i++ {
+		ret[i] = &DiffDelta{
+			OldFile: s[i].Path,
+			NewFile: s[i].Path,
+		}
+	}
+	return ret, nil
 }
 
 func (r *gitRepo) Changes(c Commit) ([]*DiffDelta, error) {
