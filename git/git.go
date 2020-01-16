@@ -171,7 +171,7 @@ func (c CLI) LsTree(sha string) ([]string, error) {
 
 // ChangedFiles returns the files that are modified in the specified commit
 func (c CLI) ChangedFiles(sha string) ([]string, error) {
-	return c.runCommand("diff-tree", "--no-commit-id", "--name-only", "-r", "--root", sha)
+	return c.runCommand("diff-tree", "--no-commit-id", "--name-only", "-r", "--root", "--find-renames", sha)
 }
 
 // runCommand implements the driver for running git with specified arguments
