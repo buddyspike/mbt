@@ -201,3 +201,38 @@ func TestLsTree(t *testing.T) {
 	assert.Len(t, ls, 1)
 	assert.Equal(t, "readme.md", ls[0])
 }
+
+func TestChangedFiles(t *testing.T) {
+	setup()
+	c := NewCLI(DataPath)
+	assert.NoError(t, c.Init())
+	assert.NoError(t, c.ConfigureUser("barry", "barry@starlabs.org"))
+	assert.NoError(t, ioutil.WriteFile(path.Join(DataPath, "a.md"), []byte("#hey"), 0744))
+	assert.NoError(t, ioutil.WriteFile(path.Join(DataPath, "b.md"), []byte("#hey"), 0744))
+	assert.NoError(t, c.IndexAll())
+	assert.NoError(t, c.Commit("first"))
+
+	assert.NoError(t, ioutil.WriteFile(path.Join(DataPath, "a.md"), []byte("#yo"), 0744))
+	assert.NoError(t, os.Rename(path.Join(DataPath, "b.md"), path.Join(DataPath, "d.md")))
+	assert.NoError(t, os.Mkdir(path.Join(DataPath, "docs"), 0744))
+	assert.NoError(t, ioutil.WriteFile(path.Join(DataPath, "docs/c.md"), []byte("#hey"), 0744))
+	assert.NoError(t, c.IndexAll())
+	assert.NoError(t, c.Commit("second"))
+
+	log, err := c.Log()
+	assert.NoError(t, err)
+	assert.Len(t, log, 2)
+
+	ls, err := c.ChangedFiles(log[1])
+	assert.NoError(t, err)
+	assert.Len(t, ls, 2)
+	assert.Equal(t, "a.md", ls[0])
+	assert.Equal(t, "b.md", ls[1])
+
+	ls, err = c.LsTree(log[0])
+	assert.NoError(t, err)
+	assert.Len(t, ls, 3)
+	assert.Equal(t, "a.md", ls[0])
+	assert.Equal(t, "d.md", ls[1])
+	assert.Equal(t, "docs/c.md", ls[2])
+}
