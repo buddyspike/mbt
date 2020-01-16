@@ -223,13 +223,13 @@ func TestChangedFiles(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, log, 2)
 
-	ls, err := c.ChangedFiles(log[1])
+	ls, err := c.Show(log[1])
 	assert.NoError(t, err)
 	assert.Len(t, ls, 2)
 	assert.Equal(t, "a.md", ls[0])
 	assert.Equal(t, "b.md", ls[1])
 
-	ls, err = c.LsTree(log[0])
+	ls, err = c.Show(log[0])
 	assert.NoError(t, err)
 	assert.Len(t, ls, 3)
 	assert.Equal(t, "a.md", ls[0])
