@@ -202,7 +202,7 @@ func TestLsTree(t *testing.T) {
 	assert.Equal(t, "readme.md", ls[0])
 }
 
-func TestChangedFiles(t *testing.T) {
+func TestShow(t *testing.T) {
 	setup()
 	c := NewCLI(DataPath)
 	assert.NoError(t, c.Init())
